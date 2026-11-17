@@ -58,7 +58,9 @@ for (const file of inputs) {
   const p1 = Math.max(1, first.viewers);
 
   // Comparable release-day curves, normalized by each comparable's own hour-1 print.
+  // Dedupe by (name, day_start): the same comparable appears in every case file.
   interface Comp { name: string; rel: Map<number, number>; p1: number }
+  const seen = new Set<string>();
   const comps: Comp[] = [];
   for (const comp of c.comparables ?? []) {
     const ds = hourOf(comp.day_start);
@@ -70,6 +72,9 @@ for (const file of inputs) {
     }
     const own = day.get(1);
     if (own === undefined || own <= 0) continue;
+    const key = `${comp.name}|${comp.day_start}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
     const rel = new Map<number, number>();
     let ok = true;
     for (let h = 2; h <= 24; h++) {
