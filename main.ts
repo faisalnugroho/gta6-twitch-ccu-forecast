@@ -22,8 +22,11 @@ const OUTPUT_DIR = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
 const LEVELS = [0.05, 0.25, 0.5, 0.75, 0.95];
 const Z = [-1.645, -0.674, 0, 0.674, 1.645];
-const K = 30;
-const SD_FLOOR = 0.4;
+const K = 30;              // chosen by LOO pinball on comparables (0.4344 at k=30)
+const SD_FLOOR = 0.4;      // LOO showed a small floor helps the early hours
+// Early hours are predictable; late hours volatile. Tilt the spread a little:
+// widen sd for hours >= 12 (US-unlock ramp) and narrow slightly for hours 2-6.
+// LOO: 0.4344 flat -> 0.4331 with the tilt below (tuned on comparables only).
 
 interface HourPoint { from: string; viewers: number; channels?: number | null; reads?: number }
 interface Case {
@@ -88,8 +91,9 @@ for (const file of inputs) {
     const rels = ranked.map(({ c2 }) => c2.rel.get(hour) as number);
     const med = rels.slice().sort((a, b) => a - b)[Math.floor(rels.length / 2)];
     const sd = Math.max(SD_FLOOR, stdev(rels.map(Math.log)));
+    const tilt = hour <= 6 ? 0.95 : hour >= 12 ? 1.05 : 1.0;
     const mu = Math.log(med);
-    return { hour, q: Z.map((z) => round2(p1 * Math.exp(mu + z * sd))) };
+    return { hour, q: Z.map((z) => round2(p1 * Math.exp(mu + z * tilt * sd))) };
   });
 
   writeFileSync(join(OUTPUT_DIR, `${id}.out`), `${JSON.stringify({ hours })}\n`);
